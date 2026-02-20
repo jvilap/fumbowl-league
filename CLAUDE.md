@@ -156,8 +156,8 @@ Las temporadas van de **septiembre a junio**:
 | Temporada | Torneos | Estado |
 |---|---|---|
 | **23/24** | 1 FUMBOWL SWISS + 3 Divisiones (1a–3a) + PLAYOFFS '24 | Completada |
-| **24/25** | PreSeason 2024 + 6 Divisiones (1a–6a) + PLAYOFFS 2k25 | Completada |
-| **25/26** | PreSeason 2k25 + PreSeason 2025 + 7 Divisiones (1a–7a) | **En curso** |
+| **24/25** | PreSeason 2024 + 6 Divisiones (1a–6a) + PLAYOFFS '25 | Completada |
+| **25/26** | PreSeason 2025 + 7 Divisiones (1a–7a) + PLAYOFFS '26 | **En curso** |
 
 ### Torneos del grupo (`/group/tournaments/13713`)
 
@@ -238,17 +238,55 @@ team1 / team2 {
 
 ---
 
+## Sistema ELO
+
+Rating personal de cada **entrenador** calculado a partir de todos los partidos jugados dentro del grupo 13713, en orden cronológico y acumulado entre temporadas.
+
+### Reglas
+- ELO es del **entrenador**, no del equipo
+- Solo cuentan partidos del grupo 13713 (todas las temporadas)
+- Se procesan en orden cronológico (por fecha de partida)
+- Empate cuenta como 0.5 puntos para ambos
+- Rating inicial: **1000**
+- Factor K: **32** (estándar; ajustable si hay muchos entrenadores nuevos)
+
+### Fórmula estándar
+```
+E = 1 / (1 + 10^((Rb - Ra) / 400))   ← probabilidad esperada de victoria
+R' = R + K * (S - E)
+
+S = 1 (victoria) | 0.5 (empate) | 0 (derrota)
+```
+
+### Flujo de cálculo
+```
+1. GET /group/tournaments/13713 → todos los torneos
+2. GET /tournament/schedule/{id} → partidos por torneo (con fecha y resultado)
+3. Extraer todos los matchIds jugados (status: "played")
+4. GET /match/get/{matchId} → coach IDs de cada equipo
+5. Ordenar partidas por fecha ASC
+6. Recalcular ELO de cada entrenador partido a partido
+7. Guardar historial de ELO por entrenador (evolución temporal)
+```
+
+### Consideraciones
+- Los partidos de **pretemporada (Swiss)** también cuentan para el ELO
+- Los partidos de **playoffs (Knockout)** también cuentan
+- Si un entrenador entra en la liga más tarde, arranca desde 1000 en su primer partido
+- El ELO se recalcula completo desde cero cuando se actualizan datos (no es incremental)
+
+---
+
 ## Funcionalidades previstas (backlog inicial)
 
 ### Estadísticas (MVP — datos de FUMBBL)
-- [ ] Página de perfil de entrenador con sus equipos e historial
-- [ ] Página de equipo con plantilla, stats y últimas partidas
+- [ ] Ranking ELO global de entrenadores
+- [ ] Página de perfil de entrenador con ELO histórico, equipos y partidas en la liga
+- [ ] Página de equipo con plantilla, stats y partidas de la temporada
 - [ ] Página de jugador con stats individuales (TDs, bajas, SPPs, habilidades)
-- [ ] Buscador global de entrenadores y equipos
-- [ ] Historial de partidas con detalle por equipo
+- [ ] Clasificaciones por división (temporada activa)
 
 ### Liga (fase 2)
-- [ ] Clasificaciones por división (fase regular)
 - [ ] Bracket de playoffs
 - [ ] Gestión del draft de razas
 - [ ] Ascensos y descensos automáticos al cierre de temporada
