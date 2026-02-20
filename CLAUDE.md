@@ -115,17 +115,32 @@ La web consume la API pública de **FUMBBL** (plataforma donde se juegan las par
 | | `GET /tournament/schedule/{tournamentId}` | Calendario de un torneo |
 | **Grupo** | `GET /group/tournaments/{groupId}` | Torneos de un grupo (=liga) |
 
+### Flujo de datos recomendado
+
+Los entrenadores **no se consultan directamente** — se descubren a través de los equipos participantes en cada torneo. Un entrenador puede tener decenas de equipos en FUMBBL ajenos a la liga.
+
+```
+/group/tournaments/13713
+  → lista de torneos por temporada
+    → /tournament/schedule/{id}
+        → team IDs de cada enfrentamiento
+          → /team/get/{teamId}
+              → coach { id, name }   ← así obtenemos los entrenadores de la liga
+              → roster { name }      ← raza
+              → players[]            ← plantilla con stats
+              → record               ← clasificación del equipo
+```
+
 ### Estructura de proxy en Next.js
 
 ```
 app/api/fumbbl/
-  coach/[id]/route.ts         → GET /coach/get/{id}
-  coach/[id]/teams/route.ts   → GET /coach/teams/{id}
-  coach/search/route.ts       → GET /coach/search/{term}
-  team/[id]/route.ts          → GET /team/get/{id}
-  team/[id]/matches/route.ts  → GET /team/matches/{id}/{latestMatch}
-  player/[id]/route.ts        → GET /player/get/{id}
-  match/[id]/route.ts         → GET /match/get/{id}
+  group/tournaments/route.ts          → GET /group/tournaments/13713
+  tournament/[id]/route.ts            → GET /tournament/get/{id}
+  tournament/[id]/schedule/route.ts   → GET /tournament/schedule/{id}
+  team/[id]/route.ts                  → GET /team/get/{id}
+  player/[id]/route.ts                → GET /player/get/{id}
+  match/[id]/route.ts                 → GET /match/get/{id}
 ```
 
 ---
@@ -133,6 +148,16 @@ app/api/fumbbl/
 ## Mapa de datos real (grupo 13713 — Fumbowl League)
 
 > Verificado contra la API en febrero 2026. Group ID: **13713**
+
+### Temporadas
+
+Las temporadas van de **septiembre a junio**:
+
+| Temporada | Torneos | Estado |
+|---|---|---|
+| **23/24** | 1 FUMBOWL SWISS + 3 Divisiones (1a–3a) + PLAYOFFS '24 | Completada |
+| **24/25** | PreSeason 2024 + 6 Divisiones (1a–6a) + PLAYOFFS 2k25 | Completada |
+| **25/26** | PreSeason 2k25 + PreSeason 2025 + 7 Divisiones (1a–7a) | **En curso** |
 
 ### Torneos del grupo (`/group/tournaments/13713`)
 
@@ -142,14 +167,7 @@ id, name, type (Swiss|RoundRobin|Knockout), status (Completed|In Progress),
 start, end, season, winner? { id, name }
 ```
 
-Temporadas identificadas:
-| Temporada | Torneos |
-|---|---|
-| 2023 | 1 FUMBOWL SWISS + 3 Divisiones (1a–3a) |
-| 2024 | PreSeason 2024 + 6 Divisiones + PLAYOFFS '24 |
-| 2025 (activa) | PreSeason 2k25 + PreSeason 2025 + 7 Divisiones (1a–7a) + PLAYOFFS 2k25 |
-
-IDs de torneos activos (temporada 2025):
+IDs de torneos activos (temporada **25/26**):
 - **65431** — 7a Div | **65433** — 6a Div | **65434** — 5a Div
 - **65435** — 4a Div | **65436** — 3a Div | **65437** — 2a Div | **65438** — 1a Div
 
