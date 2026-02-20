@@ -250,6 +250,15 @@ Rating personal de cada **entrenador** calculado a partir de todos los partidos 
 - Rating inicial: **1000**
 - Factor K: **32** (estándar; ajustable si hay muchos entrenadores nuevos)
 
+### Configuración
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `includePreseason` | boolean | `true` | Si `false`, excluye los torneos de tipo Swiss del cálculo |
+| `k` | number | `32` | Factor K de la fórmula ELO |
+| `initialRating` | number | `1000` | Rating de partida para entrenadores nuevos |
+
+Los torneos de tipo `Swiss` corresponden a la pretemporada. El tipo viene del campo `type` de `/group/tournaments`.
+
 ### Fórmula estándar
 ```
 E = 1 / (1 + 10^((Rb - Ra) / 400))   ← probabilidad esperada de victoria
