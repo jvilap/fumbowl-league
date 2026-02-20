@@ -129,6 +129,96 @@ app/api/fumbbl/
 
 ---
 
+## Mapa de datos real (grupo 13713 — Fumbowl League)
+
+> Verificado contra la API en febrero 2026. Group ID: **13713**
+
+### Torneos del grupo (`/group/tournaments/13713`)
+
+Cada entrada devuelve:
+```
+id, name, type (Swiss|RoundRobin|Knockout), status (Completed|In Progress),
+start, end, season, winner? { id, name }
+```
+
+Temporadas identificadas:
+| Temporada | Torneos |
+|---|---|
+| 2023 | 1 FUMBOWL SWISS + 3 Divisiones (1a–3a) |
+| 2024 | PreSeason 2024 + 6 Divisiones + PLAYOFFS '24 |
+| 2025 (activa) | PreSeason 2k25 + PreSeason 2025 + 7 Divisiones (1a–7a) + PLAYOFFS 2k25 |
+
+IDs de torneos activos (temporada 2025):
+- **65431** — 7a Div | **65433** — 6a Div | **65434** — 5a Div
+- **65435** — 4a Div | **65436** — 3a Div | **65437** — 2a Div | **65438** — 1a Div
+
+### Calendario de torneo (`/tournament/schedule/{id}`)
+
+Por cada enfrentamiento:
+```
+round (1–13), position, created, modified
+result {
+  id (matchId), status (played|pending), replayId, winner (teamId)
+  teams [{ id, score }, { id, score }]
+}
+teams [{ id, name }, { id, name }]
+```
+
+### Equipo (`/team/get/{teamId}`)
+
+```
+id, name, status (Active)
+coach { id, name }
+roster { id, name }           ← raza (Vampire, Dwarf, Orc...)
+divisionId, division, league (= groupId)
+teamValue, currentTeamValue, treasury
+rerolls, fanFactor, apothecary, assistantCoaches, cheerleaders
+record {
+  games, wins, ties, losses, form (ej: "WLLWW")
+  td { delta, for, against }
+  cas { delta, for, against }
+}
+seasonInfo { currentSeason, gamesPlayedInCurrentSeason, record {W,T,L} }
+tournament { id, opponents[], mode }
+lastMatch { id }
+players[] → ver sección Jugador
+```
+
+### Jugador (`players[]` en equipo o `/player/get/{id}`)
+
+```
+id, number, name, status (0=activo)
+position, positionId
+portrait, gender
+record {
+  games, completions, touchdowns, deflections,
+  interceptions, casualties, mvps, spp, spent_spp
+}
+skills []               ← habilidades ganadas
+injuries                ← string compacto ej: "-pa,-ag,m"
+injuryStatus [] {
+  injury, lasting (permanente), lastMatch (en último partido)
+}
+skillStatus { status (none|canSkill), maxLimit, tier }
+```
+
+### Partida (`/match/get/{matchId}`)
+
+```
+id, replayId, tournamentId, date, time
+conceded (None|team1|team2)
+team1 / team2 {
+  id, name
+  roster { id, name }
+  coach { id, name, rating { pre, post } { r, cr, bracket } }
+  score, fanfactor, winnings
+  teamValue, currentTeamValue, tournamentWeight
+  casualties { bh (badly hurt), si (serious injury), rip (muerte) }
+}
+```
+
+---
+
 ## Funcionalidades previstas (backlog inicial)
 
 ### Estadísticas (MVP — datos de FUMBBL)
