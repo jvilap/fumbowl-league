@@ -84,20 +84,89 @@ Blood Bowl es un juego de mesa/videojuego de estrategia por turnos ambientado en
 | Estilos | Tailwind CSS |
 | Deploy | Vercel |
 | Repositorio | GitHub (`jvilap/fumbowl-league`) |
+| Datos externos | FUMBBL API (`https://fumbbl.com/api`) |
+
+---
+
+## Fuente de datos: FUMBBL API
+
+La web consume la API pública de **FUMBBL** (plataforma donde se juegan las partidas).
+- **Base URL:** `https://fumbbl.com/api`
+- **Docs:** https://fumbbl.com/apidoc/#/
+- Los endpoints de lectura son públicos (sin OAuth). OAuth solo requerido para escritura.
+- Las llamadas se hacen desde **Next.js Route Handlers** (`app/api/`) para evitar CORS y ocultar la lógica de proxy.
+
+### Endpoints utilizados
+
+| Entidad | Endpoint | Descripción |
+|---|---|---|
+| **Entrenador** | `GET /coach/get/{coachId}` | Info del entrenador |
+| | `GET /coach/search/{term}` | Buscar entrenadores por nombre |
+| | `GET /coach/teams/{coach}` | Equipos de un entrenador |
+| **Equipo** | `GET /team/get/{teamId}` | Info y plantilla del equipo |
+| | `GET /team/matches/{teamId}/{latestMatch}` | Historial de partidas del equipo |
+| **Jugador** | `GET /player/get/{playerId}` | Info y stats del jugador |
+| **Partida** | `GET /match/get/{matchId}` | Detalle de una partida |
+| **Roster** | `GET /roster/get/{rosterId}` | Info de la raza/roster |
+| **Posición** | `GET /position/get/{positionId}` | Info de una posición del equipo |
+| **Habilidades** | `GET /skill/list` | Listado de habilidades disponibles |
+| **Torneo** | `GET /tournament/get/{tournamentId}` | Info de un torneo |
+| | `GET /tournament/schedule/{tournamentId}` | Calendario de un torneo |
+| **Grupo** | `GET /group/tournaments/{groupId}` | Torneos de un grupo (=liga) |
+
+### Estructura de proxy en Next.js
+
+```
+app/api/fumbbl/
+  coach/[id]/route.ts         → GET /coach/get/{id}
+  coach/[id]/teams/route.ts   → GET /coach/teams/{id}
+  coach/search/route.ts       → GET /coach/search/{term}
+  team/[id]/route.ts          → GET /team/get/{id}
+  team/[id]/matches/route.ts  → GET /team/matches/{id}/{latestMatch}
+  player/[id]/route.ts        → GET /player/get/{id}
+  match/[id]/route.ts         → GET /match/get/{id}
+```
 
 ---
 
 ## Funcionalidades previstas (backlog inicial)
 
-- [ ] Gestión de entrenadores (registro, perfil, historial)
-- [ ] Gestión de franquicias y plantillas
+### Estadísticas (MVP — datos de FUMBBL)
+- [ ] Página de perfil de entrenador con sus equipos e historial
+- [ ] Página de equipo con plantilla, stats y últimas partidas
+- [ ] Página de jugador con stats individuales (TDs, bajas, SPPs, habilidades)
+- [ ] Buscador global de entrenadores y equipos
+- [ ] Historial de partidas con detalle por equipo
+
+### Liga (fase 2)
 - [ ] Clasificaciones por división (fase regular)
-- [ ] Gestión del draft de razas
 - [ ] Bracket de playoffs
-- [ ] Registro de resultados de partidos
+- [ ] Gestión del draft de razas
 - [ ] Ascensos y descensos automáticos al cierre de temporada
-- [ ] Historial de temporadas
 - [ ] Panel de administración para el comisionado
+
+---
+
+## Estructura de carpetas objetivo
+
+```
+app/
+  (stats)/                    # Grupo de rutas de estadísticas
+    entrenador/[id]/page.tsx
+    equipo/[id]/page.tsx
+    jugador/[id]/page.tsx
+  api/
+    fumbbl/                   # Proxy hacia FUMBBL API
+      coach/[id]/route.ts
+      team/[id]/route.ts
+      player/[id]/route.ts
+components/
+  stats/                      # Componentes de estadísticas
+  ui/                         # Componentes genéricos (botones, cards, etc.)
+lib/
+  fumbbl.ts                   # Cliente tipado de la FUMBBL API
+  types.ts                    # Tipos TypeScript del dominio
+```
 
 ---
 
@@ -106,4 +175,5 @@ Blood Bowl es un juego de mesa/videojuego de estrategia por turnos ambientado en
 - Componentes en `components/` con PascalCase
 - Rutas en `app/` siguiendo App Router de Next.js
 - Un componente por archivo
+- Llamadas a FUMBBL siempre a través de `lib/fumbbl.ts`, nunca directas desde componentes
 - Commits en inglés, formato: `tipo: descripción corta`
