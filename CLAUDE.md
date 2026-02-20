@@ -52,10 +52,11 @@ Blood Bowl es un juego de mesa/videojuego de estrategia por turnos ambientado en
 - Primero escoge el peor clasificado; último el mejor
 - Ejemplo: si suben 4 entrenadores de 2ª a 1ª, el que quedó 4º de 2ª escoge antes que el que quedó 3º, y así sucesivamente hasta el 1º de 1ª
 
-### Equipos persistentes
-- Los equipos **no se resetean** entre temporadas
-- Los jugadores conservan experiencia, lesiones y habilidades ganadas
-- Esto añade una dimensión estratégica de largo plazo (gestión de plantilla)
+### Equipos por temporada
+- Cada temporada cada entrenador crea un **equipo nuevo**, independientemente de si repite raza o no
+- El equipo **no se resetea dentro de la temporada**: el mismo equipo juega pretemporada → fase regular → playoffs
+- Los jugadores acumulan experiencia, lesiones y habilidades a lo largo de la temporada
+- En FUMBBL, un entrenador tiene **un equipo por temporada** → varios equipos en su historial
 
 ---
 
@@ -64,7 +65,7 @@ Blood Bowl es un juego de mesa/videojuego de estrategia por turnos ambientado en
 | Término | Descripción |
 |---|---|
 | **Entrenador** | Usuario/jugador de la liga |
-| **Franquicia** | El equipo de Blood Bowl de un entrenador (persiste entre temporadas) |
+| **Equipo** | El equipo de Blood Bowl de un entrenador para una temporada concreta. Cada temporada es un equipo nuevo. |
 | **Raza** | El tipo de equipo en Blood Bowl (Humanos, Orcos, Elfos, No-Muertos, etc.) |
 | **División** | Grupo de entrenadores que compiten entre sí en fase regular |
 | **Swiss** | Formato donde los rivales se emparejan por puntuación similar (sin eliminar) |
