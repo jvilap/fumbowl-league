@@ -1,20 +1,11 @@
 import { db } from "@/lib/db";
 import { teams, coaches, eloRatings } from "@/lib/db/schema";
 import { desc, eq, isNotNull, sql } from "drizzle-orm";
-import dynamic from "next/dynamic";
 import PageHeader from "@/components/layout/PageHeader";
+import RaceBarChart from "@/components/charts/RaceBarChartWrapper";
 import type { RaceBarData } from "@/components/charts/RaceBarChart";
 
 export const revalidate = 3600;
-
-const RaceBarChart = dynamic(() => import("@/components/charts/RaceBarChart"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-80 flex items-center justify-center">
-      <span className="font-mono text-xs text-parchment-faint">Cargando gráfico…</span>
-    </div>
-  ),
-});
 
 interface RaceRow {
   rosterName: string;

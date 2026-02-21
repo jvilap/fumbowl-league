@@ -1,20 +1,11 @@
 import { db } from "@/lib/db";
 import { eloRatings, eloHistory, coaches } from "@/lib/db/schema";
 import { desc, asc, eq, inArray } from "drizzle-orm";
-import dynamic from "next/dynamic";
 import PageHeader from "@/components/layout/PageHeader";
+import EloLineChart from "@/components/charts/EloLineChartWrapper";
 import type { EloDataPoint } from "@/components/charts/EloLineChart";
 
 export const revalidate = 3600;
-
-const EloLineChart = dynamic(() => import("@/components/charts/EloLineChart"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-[420px] flex items-center justify-center border border-rim">
-      <span className="font-mono text-xs text-parchment-faint">Cargando gráfico…</span>
-    </div>
-  ),
-});
 
 export default async function EloPage() {
   // Top 10 coaches by current rating

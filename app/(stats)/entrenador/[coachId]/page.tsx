@@ -11,16 +11,11 @@ import { eq, desc, asc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import PageHeader from "@/components/layout/PageHeader";
+import MiniSparkline from "@/components/charts/MiniSparklineWrapper";
 
 export const revalidate = 3600;
-
-const MiniSparkline = dynamic(
-  () => import("@/components/charts/MiniSparkline"),
-  { ssr: false }
-);
 
 interface Props {
   params: Promise<{ coachId: string }>;
