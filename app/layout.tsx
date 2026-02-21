@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cinzel, Barlow_Condensed, Geist_Mono } from "next/font/google";
+import Navbar from "@/components/layout/Navbar";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
   subsets: ["latin"],
+  weight: ["400", "700", "900"],
+});
+
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow",
+  subsets: ["latin"],
+  weight: ["400", "600"],
 });
 
 const geistMono = Geist_Mono({
@@ -14,7 +22,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Fumbowl League",
-  description: "Fumbowl League - The official league platform",
+  description: "Estadísticas y clasificaciones de la Fumbowl League",
 };
 
 export default function RootLayout({
@@ -23,10 +31,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html
+      lang="es"
+      className={`${cinzel.variable} ${barlowCondensed.variable} ${geistMono.variable}`}
+    >
+      <body className="antialiased">
+        <Navbar />
         {children}
       </body>
     </html>
