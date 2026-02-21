@@ -45,6 +45,7 @@ function PodiumBlock({
           data-countup="true"
           data-target={entry.rating.toString()}
           data-start="1000"
+          suppressHydrationWarning
         >
           {entry.rating}
         </div>
@@ -71,6 +72,7 @@ function PodiumBlock({
         data-countup="true"
         data-target={entry.rating.toString()}
         data-start="1000"
+        suppressHydrationWarning
       >
         {entry.rating}
       </div>

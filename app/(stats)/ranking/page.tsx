@@ -25,7 +25,7 @@ function formatDate(date: Date | null): string {
   });
 }
 
-const countUpScript = `(function(){function c(el){var t=parseInt(el.getAttribute('data-target'),10);var s=parseInt(el.getAttribute('data-start')||'0',10);var d=800;var st=null;function step(ts){if(!st)st=ts;var p=Math.min((ts-st)/d,1);var e=1-(1-p)*(1-p);el.textContent=Math.round(s+(t-s)*e).toString();if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}function init(){document.querySelectorAll('[data-countup]').forEach(c);}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}})();`;
+const countUpScript = `(function(){function c(el){var t=parseInt(el.getAttribute('data-target'),10);var s=parseInt(el.getAttribute('data-start')||'0',10);var d=800;var st=null;el.textContent=s.toString();function step(ts){if(!st)st=ts;var p=Math.min((ts-st)/d,1);var e=1-(1-p)*(1-p);el.textContent=Math.round(s+(t-s)*e).toString();if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}function init(){document.querySelectorAll('[data-countup]').forEach(c);}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}})();`;
 
 export default async function RankingPage() {
   const results = await db

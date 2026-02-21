@@ -24,8 +24,9 @@ export default function StatCard({
         data-countup={showCountUp ? "true" : undefined}
         data-target={showCountUp ? (value as number).toString() : undefined}
         data-start={showCountUp ? start.toString() : undefined}
+        suppressHydrationWarning
       >
-        {showCountUp ? start : value}
+        {value}
       </p>
     </div>
   );
