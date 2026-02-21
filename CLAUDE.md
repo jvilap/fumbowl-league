@@ -80,12 +80,15 @@ Blood Bowl es un juego de mesa/videojuego de estrategia por turnos ambientado en
 
 | Capa | Tecnología |
 |---|---|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Lenguaje | TypeScript |
 | Estilos | Tailwind CSS |
+| Base de datos | Vercel Postgres (Neon) |
+| ORM | Drizzle ORM |
 | Deploy | Vercel |
 | Repositorio | GitHub (`jvilap/fumbowl-league`) |
 | Datos externos | FUMBBL API (`https://fumbbl.com/api`) |
+| Sync | Vercel Cron (1 y 15 de cada mes, 4:00 UTC) |
 
 ---
 
@@ -312,16 +315,50 @@ app/
     equipo/[id]/page.tsx
     jugador/[id]/page.tsx
   api/
-    fumbbl/                   # Proxy hacia FUMBBL API
-      coach/[id]/route.ts
-      team/[id]/route.ts
-      player/[id]/route.ts
+    sync/route.ts             # POST/GET: trigger sync (protegido con CRON_SECRET)
 components/
   stats/                      # Componentes de estadísticas
   ui/                         # Componentes genéricos (botones, cards, etc.)
 lib/
-  fumbbl.ts                   # Cliente tipado de la FUMBBL API
-  types.ts                    # Tipos TypeScript del dominio
+  db/
+    schema.ts                 # Drizzle schema (todas las tablas)
+    index.ts                  # Conexión Neon HTTP (export: db)
+  fumbbl/
+    client.ts                 # Cliente FUMBBL tipado con rate limiting (200ms)
+    types.ts                  # Tipos de respuesta de la API de FUMBBL
+  sync/
+    index.ts                  # Orquestador principal (runSync)
+    tournaments.ts            # Sincroniza torneos del grupo
+    matches.ts                # Sincroniza partidas (incremental)
+    teams.ts                  # Sincroniza equipos + jugadores
+    elo.ts                    # Calculador ELO puro (sin DB ni API)
+  domain/
+    types.ts                  # Tipos del dominio para la UI
+scripts/
+  seed.ts                     # Carga histórica inicial (ejecutar localmente)
+drizzle.config.ts             # Config de Drizzle Kit
+vercel.json                   # Definición del cron job
+```
+
+## Variables de entorno
+
+| Variable | Descripción |
+|---|---|
+| `POSTGRES_URL` | Cadena de conexión Neon (auto-inyectada por Vercel) |
+| `CRON_SECRET` | Secret para proteger `/api/sync` |
+
+## Comandos útiles
+
+```bash
+# Aplicar schema a la DB
+npx drizzle-kit push
+
+# Carga histórica inicial (ejecutar localmente con .env.local configurado)
+npx tsx scripts/seed.ts
+
+# Trigger manual de sync
+curl -X POST https://tu-dominio.vercel.app/api/sync \
+  -H "Authorization: Bearer $CRON_SECRET"
 ```
 
 ---
