@@ -1,7 +1,12 @@
 import Link from "next/link";
 
 const navLinks = [
+  { href: "/", label: "Divisiones" },
   { href: "/ranking", label: "Ranking ELO" },
+  { href: "/elo", label: "Evolución ELO" },
+  { href: "/razas", label: "Razas" },
+  { href: "/h2h", label: "H2H" },
+  { href: "/partidas", label: "Partidas" },
 ];
 
 export default function Navbar() {
