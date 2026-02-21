@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { seasons, tournaments, teams, coaches } from "@/lib/db/schema";
-import { desc, asc, eq, and, isNotNull } from "drizzle-orm";
+import { desc, asc, eq, and, isNotNull, sql } from "drizzle-orm";
 import PageHeader from "@/components/layout/PageHeader";
 import DivisionTable, {
   type DivisionTeamRow,
@@ -59,7 +59,13 @@ export default async function DivisionesPage() {
         })
         .from(teams)
         .innerJoin(coaches, eq(teams.coachId, coaches.id))
-        .where(eq(teams.tournamentId, t.id))
+        .where(
+          sql`${teams.id} IN (
+            SELECT team1_id FROM matches WHERE tournament_id = ${t.id}
+            UNION
+            SELECT team2_id FROM matches WHERE tournament_id = ${t.id}
+          )`
+        )
         .orderBy(desc(teams.recordWins), desc(teams.recordTies));
 
       const teamRows: DivisionTeamRow[] = rows.map((r) => ({
