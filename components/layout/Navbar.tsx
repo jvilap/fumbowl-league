@@ -14,13 +14,15 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 border-b border-rim bg-surface/95 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-14">
-        <Link
-          href="/"
+        <a
+          href="https://fumbbl.com/p/group?op=view&group=13713"
+          target="_blank"
+          rel="noopener noreferrer"
           className="font-cinzel font-bold text-lg tracking-widest uppercase text-gold-bright hover:text-gold transition-colors"
         >
           Fumbowl
           <span className="text-parchment-dim font-normal"> League</span>
-        </Link>
+        </a>
 
         <div className="flex items-center gap-4">
           <NavCoachSearch />
