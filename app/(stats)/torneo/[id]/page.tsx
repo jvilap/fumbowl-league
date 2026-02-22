@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { tournaments, teams, coaches, matches } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -67,7 +67,13 @@ export default async function TorneoPage({ params }: Props) {
     })
     .from(teams)
     .innerJoin(coaches, eq(teams.coachId, coaches.id))
-    .where(eq(teams.tournamentId, tId))
+    .where(
+      sql`${teams.id} IN (
+        SELECT team1_id FROM matches WHERE tournament_id = ${tId}
+        UNION
+        SELECT team2_id FROM matches WHERE tournament_id = ${tId}
+      )`
+    )
     .orderBy(desc(teams.recordWins), desc(teams.recordTies), desc(teams.recordTdFor));
 
   // Recent matches in this tournament
