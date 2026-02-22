@@ -66,7 +66,11 @@ export default async function DivisionesPage() {
             SELECT team2_id FROM matches WHERE tournament_id = ${t.id}
           )`
         )
-        .orderBy(desc(teams.recordWins), desc(teams.recordTies));
+        .orderBy(
+          desc(sql`coalesce(${teams.recordWins}, 0) * 3 + coalesce(${teams.recordTies}, 0)`),
+          desc(sql`coalesce(${teams.recordTdFor}, 0) - coalesce(${teams.recordTdAgainst}, 0)`),
+          desc(teams.recordTdFor)
+        );
 
       const teamRows: DivisionTeamRow[] = rows.map((r) => ({
         id: r.id,

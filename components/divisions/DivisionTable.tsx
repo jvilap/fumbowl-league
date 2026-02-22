@@ -43,6 +43,7 @@ export default function DivisionTable({ name, tournamentId, teams }: DivisionTab
             <tr className="border-b border-rim">
               <th className="px-3 py-2 text-left font-cinzel text-xs uppercase tracking-wider text-parchment-faint w-6">#</th>
               <th className="px-3 py-2 text-left font-cinzel text-xs uppercase tracking-wider text-parchment-faint">Equipo</th>
+              <th className="px-3 py-2 text-right font-cinzel text-xs uppercase tracking-wider text-gold">Pts</th>
               <th className="px-3 py-2 text-right font-cinzel text-xs uppercase tracking-wider text-parchment-faint">PJ</th>
               <th className="px-3 py-2 text-right font-cinzel text-xs uppercase tracking-wider text-parchment-faint">V</th>
               <th className="px-3 py-2 text-right font-cinzel text-xs uppercase tracking-wider text-parchment-faint">E</th>
@@ -78,6 +79,9 @@ export default function DivisionTable({ name, tournamentId, teams }: DivisionTab
                       )}
                     </Link>
                   </div>
+                </td>
+                <td className="px-3 py-2 font-mono text-xs text-gold text-right font-bold">
+                  {team.recordWins * 3 + team.recordTies}
                 </td>
                 <td className="px-3 py-2 font-mono text-xs text-parchment-dim text-right">
                   {team.recordGames}

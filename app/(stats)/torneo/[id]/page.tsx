@@ -74,7 +74,13 @@ export default async function TorneoPage({ params }: Props) {
         SELECT team2_id FROM matches WHERE tournament_id = ${tId}
       )`
     )
-    .orderBy(desc(teams.recordWins), desc(teams.recordTies), desc(teams.recordTdFor));
+    .orderBy(
+      ...(tournament.type === "RoundRobin"
+        ? [desc(sql`coalesce(${teams.recordWins}, 0) * 3 + coalesce(${teams.recordTies}, 0)`)]
+        : []),
+      desc(sql`coalesce(${teams.recordTdFor}, 0) - coalesce(${teams.recordTdAgainst}, 0)`),
+      desc(teams.recordTdFor)
+    );
 
   // Recent matches in this tournament
   const team1 = alias(teams, "t1");
@@ -115,7 +121,9 @@ export default async function TorneoPage({ params }: Props) {
         {[
           { label: "Equipos", value: teamsRows.length },
           { label: "Inicio", value: formatDate(tournament.start) },
-          { label: "Fin", value: formatDate(tournament.end) },
+          ...(tournament.status !== "In Progress"
+            ? [{ label: "Fin", value: formatDate(tournament.end) }]
+            : []),
           { label: "Estado", value: tournament.status === "In Progress" ? "En curso" : "Finalizado" },
         ].map((s) => (
           <div key={s.label} className="border border-rim bg-surface p-3 text-center">
@@ -137,6 +145,9 @@ export default async function TorneoPage({ params }: Props) {
                 <tr className="border-b border-rim">
                   <th className="px-3 py-3 text-right font-cinzel text-xs uppercase tracking-widest text-parchment-faint">#</th>
                   <th className="px-3 py-3 text-left font-cinzel text-xs uppercase tracking-widest text-parchment-faint">Equipo</th>
+                  {tournament.type === "RoundRobin" && (
+                    <th className="px-3 py-3 text-right font-cinzel text-xs uppercase tracking-widest text-gold">Pts</th>
+                  )}
                   <th className="px-3 py-3 text-right font-cinzel text-xs uppercase tracking-widest text-parchment-faint">PJ</th>
                   <th className="px-3 py-3 text-right font-cinzel text-xs uppercase tracking-widest text-parchment-faint">V</th>
                   <th className="px-3 py-3 text-right font-cinzel text-xs uppercase tracking-widest text-parchment-faint">E</th>
@@ -167,6 +178,11 @@ export default async function TorneoPage({ params }: Props) {
                         {t.rosterName && <span> · {t.rosterName}</span>}
                       </span>
                     </td>
+                    {tournament.type === "RoundRobin" && (
+                      <td className="px-3 py-2 font-mono text-xs text-gold text-right font-bold">
+                        {(t.recordWins ?? 0) * 3 + (t.recordTies ?? 0)}
+                      </td>
+                    )}
                     <td className="px-3 py-2 font-mono text-xs text-parchment-dim text-right">{t.recordGames ?? 0}</td>
                     <td className="px-3 py-2 font-mono text-xs text-win text-right font-bold">{t.recordWins ?? 0}</td>
                     <td className="px-3 py-2 font-mono text-xs text-parchment-faint text-right">{t.recordTies ?? 0}</td>

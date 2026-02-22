@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { matches, coaches, teams, tournaments } from "@/lib/db/schema";
+import { matches, coaches, teams, tournaments, eloRatings } from "@/lib/db/schema";
 import { eq, or, and, desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import PageHeader from "@/components/layout/PageHeader";
@@ -27,25 +27,27 @@ export default async function H2HPage({ searchParams }: Props) {
   const bId = params.b ? parseInt(params.b, 10) : null;
 
   // Load coaches for display
-  let coachA: { id: number; name: string } | null = null;
-  let coachB: { id: number; name: string } | null = null;
+  let coachA: { id: number; name: string; rating: number | null } | null = null;
+  let coachB: { id: number; name: string; rating: number | null } | null = null;
 
   if (aId) {
     const [c] = await db
-      .select({ id: coaches.id, name: coaches.name })
+      .select({ id: coaches.id, name: coaches.name, rating: eloRatings.rating })
       .from(coaches)
+      .leftJoin(eloRatings, eq(coaches.id, eloRatings.coachId))
       .where(eq(coaches.id, aId))
       .limit(1);
-    coachA = c ?? null;
+    coachA = c ? { ...c, rating: c.rating ? Math.round(c.rating) : null } : null;
   }
 
   if (bId) {
     const [c] = await db
-      .select({ id: coaches.id, name: coaches.name })
+      .select({ id: coaches.id, name: coaches.name, rating: eloRatings.rating })
       .from(coaches)
+      .leftJoin(eloRatings, eq(coaches.id, eloRatings.coachId))
       .where(eq(coaches.id, bId))
       .limit(1);
-    coachB = c ?? null;
+    coachB = c ? { ...c, rating: c.rating ? Math.round(c.rating) : null } : null;
   }
 
   // H2H matches when both coaches selected
@@ -135,6 +137,9 @@ export default async function H2HPage({ searchParams }: Props) {
                 {coachA.name}
               </p>
               <p className="font-mono text-4xl font-bold text-win">{winsA}</p>
+              {coachA.rating && (
+                <p className="font-mono text-xs text-gold mt-1">ELO {coachA.rating}</p>
+              )}
             </div>
             <div className="border border-rim bg-surface p-4 text-center">
               <p className="font-cinzel text-xs uppercase tracking-widest text-parchment-faint mb-1">
@@ -147,6 +152,9 @@ export default async function H2HPage({ searchParams }: Props) {
                 {coachB.name}
               </p>
               <p className="font-mono text-4xl font-bold text-win">{winsB}</p>
+              {coachB.rating && (
+                <p className="font-mono text-xs text-gold mt-1">ELO {coachB.rating}</p>
+              )}
             </div>
           </div>
 
