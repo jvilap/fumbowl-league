@@ -95,7 +95,7 @@ export async function runSync(): Promise<SyncResult> {
   }
 }
 
-async function recalculateElo() {
+export async function recalculateElo() {
   // Load all matches sorted by date
   const allMatches = await db
     .select({
@@ -125,15 +125,33 @@ async function recalculateElo() {
       winnerCoachId: m.winnerCoachId,
     }));
 
-  const { history, ratings } = calculateElo(eloMatches, DEFAULT_ELO_CONFIG);
+  const withPreseason = calculateElo(eloMatches, { ...DEFAULT_ELO_CONFIG, includePreseason: true });
+  const withoutPreseason = calculateElo(eloMatches, { ...DEFAULT_ELO_CONFIG, includePreseason: false });
+
+  // Build lookup for eloAfterCore: "matchId:coachId" → eloAfter (sin pretemporada)
+  const coreMap = new Map<string, number>();
+  for (const entry of withoutPreseason.history) {
+    coreMap.set(`${entry.matchId}:${entry.coachId}`, entry.eloAfter);
+  }
+
+  // Enrich history with eloAfterCore (null for Swiss entries)
+  const enrichedHistory = withPreseason.history.map((entry) => ({
+    ...entry,
+    eloAfterCore: coreMap.get(`${entry.matchId}:${entry.coachId}`) ?? null,
+  }));
+
+  // Build ratingCore lookup by coachId
+  const coreRatings = new Map(withoutPreseason.ratings.map((r) => [r.coachId, r.rating]));
+
+  const { ratings } = withPreseason;
 
   // Clear and re-insert elo_history
   await db.delete(eloHistory);
-  if (history.length > 0) {
+  if (enrichedHistory.length > 0) {
     // Batch inserts in chunks of 500
     const CHUNK = 500;
-    for (let i = 0; i < history.length; i += CHUNK) {
-      await db.insert(eloHistory).values(history.slice(i, i + CHUNK));
+    for (let i = 0; i < enrichedHistory.length; i += CHUNK) {
+      await db.insert(eloHistory).values(enrichedHistory.slice(i, i + CHUNK));
     }
   }
 
@@ -144,6 +162,7 @@ async function recalculateElo() {
       .values({
         coachId: r.coachId,
         rating: r.rating,
+        ratingCore: coreRatings.get(r.coachId) ?? 1000,
         gamesPlayed: r.gamesPlayed,
         wins: r.wins,
         ties: r.ties,
@@ -155,6 +174,7 @@ async function recalculateElo() {
         target: eloRatings.coachId,
         set: {
           rating: r.rating,
+          ratingCore: coreRatings.get(r.coachId) ?? 1000,
           gamesPlayed: r.gamesPlayed,
           wins: r.wins,
           ties: r.ties,

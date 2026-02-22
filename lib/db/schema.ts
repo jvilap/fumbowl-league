@@ -123,6 +123,7 @@ export const eloHistory = pgTable("elo_history", {
   tournamentType: text("tournament_type").notNull(), // Swiss | RoundRobin | Knockout
   eloBefore: real("elo_before").notNull(),
   eloAfter: real("elo_after").notNull(),
+  eloAfterCore: real("elo_after_core"),
   eloDelta: real("elo_delta").notNull(),
   opponentCoachId: integer("opponent_coach_id").references(() => coaches.id),
   result: text("result").notNull(), // W | D | L
@@ -134,6 +135,7 @@ export const eloRatings = pgTable("elo_ratings", {
     .primaryKey()
     .references(() => coaches.id),
   rating: real("rating").notNull().default(1000),
+  ratingCore: real("rating_core").default(1000),
   gamesPlayed: integer("games_played").notNull().default(0),
   wins: integer("wins").notNull().default(0),
   ties: integer("ties").notNull().default(0),

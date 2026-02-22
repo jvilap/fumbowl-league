@@ -1,47 +1,112 @@
 import { db } from "@/lib/db";
-import { eloRatings, eloHistory, coaches } from "@/lib/db/schema";
-import { desc, asc, eq, inArray } from "drizzle-orm";
+import { eloRatings, eloHistory, coaches, seasons, tournaments, teams, matches } from "@/lib/db/schema";
+import { desc, asc, eq, inArray, isNotNull, and, sql } from "drizzle-orm";
+import Link from "next/link";
 import PageHeader from "@/components/layout/PageHeader";
 import EloLineChart from "@/components/charts/EloLineChartWrapper";
 import type { EloDataPoint } from "@/components/charts/EloLineChart";
 
 export const revalidate = 3600;
 
-export default async function EloPage() {
-  // Top 10 coaches by current rating
-  const top10 = await db
-    .select({
-      coachId: eloRatings.coachId,
-      name: coaches.name,
-      rating: eloRatings.rating,
-    })
-    .from(eloRatings)
-    .innerJoin(coaches, eq(eloRatings.coachId, coaches.id))
-    .orderBy(desc(eloRatings.rating))
-    .limit(10);
+const activeStyle =
+  "font-mono text-xs px-3 py-1 bg-gold text-surface";
+const inactiveStyle =
+  "font-mono text-xs px-3 py-1 border border-rim text-parchment-faint hover:text-parchment transition-colors";
 
-  const coachIds = top10.map((c) => c.coachId);
-  const coachNames = top10.map((c) => c.name);
+interface Props {
+  searchParams: Promise<{ preseason?: string; division?: string }>;
+}
 
-  // ELO history for those coaches
-  const history = await db
-    .select({
-      coachId: eloHistory.coachId,
-      matchDate: eloHistory.matchDate,
-      eloAfter: eloHistory.eloAfter,
-    })
-    .from(eloHistory)
-    .where(inArray(eloHistory.coachId, coachIds))
-    .orderBy(asc(eloHistory.matchDate));
+export default async function EloPage({ searchParams }: Props) {
+  const { preseason, division } = await searchParams;
+  const withPreseason = (preseason ?? "1") !== "0";
+  const selectedDivId = division ? parseInt(division, 10) : null;
 
-  // Build name lookup
-  const nameById = new Map(top10.map((c) => [c.coachId, c.name]));
+  // Divisiones activas de la temporada en curso (RoundRobin)
+  const [activeSeason] = await db
+    .select({ id: seasons.id })
+    .from(seasons)
+    .where(isNotNull(seasons.startDate))
+    .orderBy(desc(seasons.startDate))
+    .limit(1);
 
-  // Pivot: collect all unique dates, build series
-  // Use a map from dateStr → { coachName: latestElo }
+  const divTournaments = activeSeason
+    ? await db
+        .select({ id: tournaments.id, name: tournaments.name })
+        .from(tournaments)
+        .where(
+          and(
+            eq(tournaments.seasonId, activeSeason.id),
+            eq(tournaments.type, "RoundRobin")
+          )
+        )
+        .orderBy(asc(tournaments.name))
+    : [];
+
+  // Coaches a mostrar
+  let coachIds: number[];
+  let coachNames: string[];
+  let nameById: Map<number, string>;
+
+  if (selectedDivId) {
+    // Coaches que participaron en esta división
+    const divisionRows = await db
+      .select({ coachId: teams.coachId, coachName: coaches.name })
+      .from(teams)
+      .innerJoin(coaches, eq(teams.coachId, coaches.id))
+      .where(
+        sql`${teams.id} IN (
+          SELECT team1_id FROM matches WHERE tournament_id = ${selectedDivId}
+          UNION
+          SELECT team2_id FROM matches WHERE tournament_id = ${selectedDivId}
+        )`
+      );
+    coachIds = divisionRows.map((r) => r.coachId);
+    nameById = new Map(divisionRows.map((r) => [r.coachId, r.coachName]));
+    coachNames = divisionRows.map((r) => r.coachName);
+  } else {
+    // Top 10 global
+    const ratingCol = withPreseason ? eloRatings.rating : eloRatings.ratingCore;
+    const top10 = await db
+      .select({
+        coachId: eloRatings.coachId,
+        name: coaches.name,
+        rating: ratingCol,
+      })
+      .from(eloRatings)
+      .innerJoin(coaches, eq(eloRatings.coachId, coaches.id))
+      .orderBy(desc(ratingCol))
+      .limit(10);
+    coachIds = top10.map((c) => c.coachId);
+    nameById = new Map(top10.map((c) => [c.coachId, c.name]));
+    coachNames = top10.map((c) => c.name);
+  }
+
+  // ELO history para los coaches seleccionados
+  const historyRows =
+    coachIds.length > 0
+      ? await db
+          .select({
+            coachId: eloHistory.coachId,
+            matchDate: eloHistory.matchDate,
+            eloAfter: withPreseason ? eloHistory.eloAfter : eloHistory.eloAfterCore,
+          })
+          .from(eloHistory)
+          .where(
+            withPreseason
+              ? inArray(eloHistory.coachId, coachIds)
+              : and(
+                  inArray(eloHistory.coachId, coachIds),
+                  isNotNull(eloHistory.eloAfterCore)
+                )
+          )
+          .orderBy(asc(eloHistory.matchDate))
+      : [];
+
+  // Pivot + forward-fill
   const dateMap = new Map<string, Record<string, number>>();
 
-  for (const row of history) {
+  for (const row of historyRows) {
     const d = row.matchDate
       ? new Date(row.matchDate).toLocaleDateString("es-ES", {
           timeZone: "UTC",
@@ -51,19 +116,19 @@ export default async function EloPage() {
         })
       : null;
     if (!d) continue;
+    const eloVal = row.eloAfter;
+    if (eloVal === null) continue;
     const coach = nameById.get(row.coachId);
     if (!coach) continue;
 
     if (!dateMap.has(d)) dateMap.set(d, {});
-    dateMap.get(d)![coach] = Math.round(row.eloAfter);
+    dateMap.get(d)![coach] = Math.round(eloVal);
   }
 
-  // Forward-fill: for each coach, carry forward last known ELO
   const sortedDates = Array.from(dateMap.keys());
   const lastKnown: Record<string, number> = {};
   const chartData: EloDataPoint[] = sortedDates.map((date) => {
     const point = dateMap.get(date)!;
-    // Merge with carried values
     const merged: EloDataPoint = { date };
     for (const coach of coachNames) {
       if (point[coach] !== undefined) {
@@ -76,12 +141,70 @@ export default async function EloPage() {
     return merged;
   });
 
+  // URL helpers para mantener ambos params al cambiar uno
+  const preseasonSuffix = withPreseason ? "" : "&preseason=0";
+  const divisionSuffix = selectedDivId ? `&division=${selectedDivId}` : "";
+
+  const topGlobalHref = preseasonSuffix ? `/elo?${preseasonSuffix.slice(1)}` : "/elo";
+
+  const subtitle = selectedDivId
+    ? divTournaments.find((d) => d.id === selectedDivId)?.name ?? "División"
+    : "Top 10 entrenadores";
+
+  // Top 10 ratings for the table
+  const ratingCol = withPreseason ? eloRatings.rating : eloRatings.ratingCore;
+  const tableEntries = selectedDivId
+    ? await db
+        .select({ coachId: eloRatings.coachId, name: coaches.name, rating: ratingCol })
+        .from(eloRatings)
+        .innerJoin(coaches, eq(eloRatings.coachId, coaches.id))
+        .where(inArray(eloRatings.coachId, coachIds))
+        .orderBy(desc(ratingCol))
+    : await db
+        .select({ coachId: eloRatings.coachId, name: coaches.name, rating: ratingCol })
+        .from(eloRatings)
+        .innerJoin(coaches, eq(eloRatings.coachId, coaches.id))
+        .where(inArray(eloRatings.coachId, coachIds))
+        .orderBy(desc(ratingCol));
+
   return (
     <main className="max-w-7xl mx-auto px-6 pb-16">
       <PageHeader
         title="EVOLUCIÓN ELO"
-        subtitle="Historial de rating acumulado — Top 10 entrenadores"
+        subtitle={`Historial de rating acumulado — ${subtitle}`}
       />
+
+      {/* Selector de división */}
+      <div className="flex gap-2 flex-wrap mb-4">
+        <Link href={topGlobalHref} className={!selectedDivId ? activeStyle : inactiveStyle}>
+          Top 10 Global
+        </Link>
+        {divTournaments.map((d) => (
+          <Link
+            key={d.id}
+            href={`/elo?division=${d.id}${preseasonSuffix}`}
+            className={selectedDivId === d.id ? activeStyle : inactiveStyle}
+          >
+            {d.name}
+          </Link>
+        ))}
+      </div>
+
+      {/* Toggle pretemporada */}
+      <div className="flex justify-end gap-2 mb-4">
+        <Link
+          href={divisionSuffix ? `/elo?${divisionSuffix.slice(1)}` : "/elo"}
+          className={withPreseason ? activeStyle : inactiveStyle}
+        >
+          Con pretemporada
+        </Link>
+        <Link
+          href={`/elo?preseason=0${divisionSuffix}`}
+          className={!withPreseason ? activeStyle : inactiveStyle}
+        >
+          Sin pretemporada
+        </Link>
+      </div>
 
       <div className="border border-rim bg-surface p-4 mb-8">
         <EloLineChart data={chartData} coaches={coachNames} />
@@ -97,7 +220,7 @@ export default async function EloPage() {
             </tr>
           </thead>
           <tbody>
-            {top10.map((coach, i) => (
+            {tableEntries.map((coach, i) => (
               <tr key={coach.coachId} className="border-b border-rim last:border-0 hover:bg-elevated transition-colors">
                 <td className="px-4 py-3 font-mono text-sm text-parchment-faint text-right">{i + 1}</td>
                 <td className="px-4 py-3">
@@ -109,7 +232,7 @@ export default async function EloPage() {
                   </a>
                 </td>
                 <td className="px-4 py-3 font-mono text-sm text-gold-bright text-right font-bold">
-                  {Math.round(coach.rating)}
+                  {Math.round(coach.rating ?? 1000)}
                 </td>
               </tr>
             ))}

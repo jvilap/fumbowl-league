@@ -1,12 +1,18 @@
 import { db } from "@/lib/db";
 import { eloRatings, coaches } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import PageHeader from "@/components/layout/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import { Table, type Column } from "@/components/ui/Table";
 import Podium, { type RankingEntry } from "@/components/ranking/Podium";
 
 export const dynamic = "force-dynamic";
+
+const activeStyle =
+  "font-mono text-xs px-3 py-1 bg-gold text-surface";
+const inactiveStyle =
+  "font-mono text-xs px-3 py-1 border border-rim text-parchment-faint hover:text-parchment transition-colors";
 
 function eloColor(rating: number): string {
   if (rating >= 1200) return "text-gold-bright";
@@ -27,12 +33,21 @@ function formatDate(date: Date | null): string {
 
 const countUpScript = `(function(){function c(el){var t=parseInt(el.getAttribute('data-target'),10);var s=parseInt(el.getAttribute('data-start')||'0',10);var d=800;var st=null;el.textContent=s.toString();function step(ts){if(!st)st=ts;var p=Math.min((ts-st)/d,1);var e=1-(1-p)*(1-p);el.textContent=Math.round(s+(t-s)*e).toString();if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}function init(){document.querySelectorAll('[data-countup]').forEach(c);}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}})();`;
 
-export default async function RankingPage() {
+interface Props {
+  searchParams: Promise<{ preseason?: string }>;
+}
+
+export default async function RankingPage({ searchParams }: Props) {
+  const { preseason } = await searchParams;
+  const withPreseason = (preseason ?? "1") !== "0";
+
+  const ratingCol = withPreseason ? eloRatings.rating : eloRatings.ratingCore;
+
   const results = await db
     .select({
       coachId: coaches.id,
       name: coaches.name,
-      rating: eloRatings.rating,
+      rating: ratingCol,
       wins: eloRatings.wins,
       ties: eloRatings.ties,
       losses: eloRatings.losses,
@@ -41,12 +56,12 @@ export default async function RankingPage() {
     })
     .from(eloRatings)
     .innerJoin(coaches, eq(eloRatings.coachId, coaches.id))
-    .orderBy(desc(eloRatings.rating));
+    .orderBy(desc(ratingCol));
 
   const rankings: RankingEntry[] = results.map((r) => ({
     coachId: r.coachId,
     name: r.name,
-    rating: Math.round(r.rating),
+    rating: Math.round(r.rating ?? 1000),
     wins: r.wins,
     ties: r.ties,
     losses: r.losses,
@@ -148,6 +163,15 @@ export default async function RankingPage() {
             title="RANKING ELO"
             subtitle="Clasificación global de entrenadores por rating acumulado"
           />
+
+          <div className="flex justify-end gap-2 mb-6">
+            <Link href="/ranking" className={withPreseason ? activeStyle : inactiveStyle}>
+              Con pretemporada
+            </Link>
+            <Link href="/ranking?preseason=0" className={!withPreseason ? activeStyle : inactiveStyle}>
+              Sin pretemporada
+            </Link>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <StatCard label="Líder" value={leader?.name ?? "—"} />
