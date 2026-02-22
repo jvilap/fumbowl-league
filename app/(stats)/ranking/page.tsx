@@ -89,9 +89,12 @@ export default async function RankingPage({ searchParams }: Props) {
       key: "name",
       header: "Entrenador",
       cell: (row) => (
-        <span className="font-barlow font-semibold text-base text-parchment">
+        <Link
+          href={`/entrenador/${row.coachId}`}
+          className="font-barlow font-semibold text-base text-parchment hover:text-gold transition-colors"
+        >
           {row.name}
-        </span>
+        </Link>
       ),
       align: "left",
     },

@@ -23,9 +23,10 @@ export interface EloDataPoint {
 interface EloLineChartProps {
   data: EloDataPoint[];
   coaches: string[];
+  seasonBoundaries?: Array<{ date: string; label: string }>;
 }
 
-export default function EloLineChart({ data, coaches }: EloLineChartProps) {
+export default function EloLineChart({ data, coaches, seasonBoundaries }: EloLineChartProps) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   const toggleCoach = (name: string) => {
@@ -48,10 +49,12 @@ export default function EloLineChart({ data, coaches }: EloLineChartProps) {
           />
           <XAxis
             dataKey="date"
-            tick={{ fill: CHART_COLORS.parchmentFaint, fontSize: CHART_STYLE.fontSize, fontFamily: CHART_STYLE.fontFamily }}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            tick={{ fill: CHART_COLORS.parchmentFaint, fontSize: CHART_STYLE.fontSize, fontFamily: CHART_STYLE.fontFamily, angle: -40, textAnchor: "end" } as any}
             axisLine={{ stroke: CHART_COLORS.rim }}
             tickLine={false}
-            interval="preserveStartEnd"
+            height={52}
+            interval={Math.max(0, Math.ceil(data.length / 7) - 1)}
           />
           <YAxis
             tick={{ fill: CHART_COLORS.parchmentFaint, fontSize: CHART_STYLE.fontSize, fontFamily: CHART_STYLE.fontFamily }}
@@ -79,6 +82,21 @@ export default function EloLineChart({ data, coaches }: EloLineChartProps) {
               return <ChartTooltip label={String(label ?? "")} entries={entries} />;
             }}
           />
+          {(seasonBoundaries ?? []).map((b) => (
+            <ReferenceLine
+              key={b.date}
+              x={b.date}
+              stroke={CHART_COLORS.goldDim}
+              strokeDasharray="4 2"
+              label={{
+                value: b.label,
+                fill: CHART_COLORS.gold,
+                fontSize: 9,
+                fontFamily: CHART_STYLE.fontFamily,
+                position: "insideTopLeft",
+              }}
+            />
+          ))}
           {coaches.map((coach, i) => (
             <Line
               key={coach}

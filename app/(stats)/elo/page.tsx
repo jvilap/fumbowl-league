@@ -105,6 +105,7 @@ export default async function EloPage({ searchParams }: Props) {
 
   // Pivot + forward-fill
   const dateMap = new Map<string, Record<string, number>>();
+  const dateToTimestamp = new Map<string, number>();
 
   for (const row of historyRows) {
     const d = row.matchDate
@@ -123,6 +124,9 @@ export default async function EloPage({ searchParams }: Props) {
 
     if (!dateMap.has(d)) dateMap.set(d, {});
     dateMap.get(d)![coach] = Math.round(eloVal);
+    if (!dateToTimestamp.has(d)) {
+      dateToTimestamp.set(d, new Date(row.matchDate!).getTime());
+    }
   }
 
   const sortedDates = Array.from(dateMap.keys());
@@ -140,6 +144,22 @@ export default async function EloPage({ searchParams }: Props) {
     }
     return merged;
   });
+
+  // Season boundary markers
+  const allSeasons = await db
+    .select({ id: seasons.id, label: seasons.label, startDate: seasons.startDate })
+    .from(seasons)
+    .where(isNotNull(seasons.startDate))
+    .orderBy(asc(seasons.startDate));
+
+  const seasonBoundaries: Array<{ date: string; label: string }> = [];
+  for (const season of allSeasons.slice(1)) {
+    const ts = new Date(season.startDate!).getTime();
+    const boundaryDate = sortedDates.find((d) => (dateToTimestamp.get(d) ?? 0) >= ts);
+    if (boundaryDate) {
+      seasonBoundaries.push({ date: boundaryDate, label: season.label });
+    }
+  }
 
   // URL helpers para mantener ambos params al cambiar uno
   const preseasonSuffix = withPreseason ? "" : "&preseason=0";
@@ -207,7 +227,7 @@ export default async function EloPage({ searchParams }: Props) {
       </div>
 
       <div className="border border-rim bg-surface p-4 mb-8">
-        <EloLineChart data={chartData} coaches={coachNames} />
+        <EloLineChart data={chartData} coaches={coachNames} seasonBoundaries={seasonBoundaries} />
       </div>
 
       <div className="border border-rim">

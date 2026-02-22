@@ -12,6 +12,6 @@ const EloLineChart = dynamic(() => import("./EloLineChart"), {
   ),
 });
 
-export default function EloLineChartWrapper(props: { data: EloDataPoint[]; coaches: string[] }) {
+export default function EloLineChartWrapper(props: { data: EloDataPoint[]; coaches: string[]; seasonBoundaries?: Array<{ date: string; label: string }> }) {
   return <EloLineChart {...props} />;
 }

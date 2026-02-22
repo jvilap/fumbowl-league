@@ -7,18 +7,26 @@ import {
   teams,
   tournaments,
 } from "@/lib/db/schema";
-import { eq, desc, asc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql, isNotNull, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageHeader from "@/components/layout/PageHeader";
-import MiniSparkline from "@/components/charts/MiniSparklineWrapper";
+import CoachEloChart from "@/components/charts/CoachEloChartWrapper";
+import type { CoachSegment } from "@/components/charts/CoachEloChart";
+import { CHART_COLORS } from "@/lib/charts/theme";
 
 export const revalidate = 3600;
 
+const activeStyle =
+  "font-mono text-xs px-3 py-1 bg-gold text-surface";
+const inactiveStyle =
+  "font-mono text-xs px-3 py-1 border border-rim text-parchment-faint hover:text-parchment transition-colors";
+
 interface Props {
   params: Promise<{ coachId: string }>;
+  searchParams: Promise<{ preseason?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -50,17 +58,19 @@ function eloColor(rating: number): string {
   return "text-parchment-dim";
 }
 
-export default async function CoachProfilePage({ params }: Props) {
-  const { coachId } = await params;
+export default async function CoachProfilePage({ params, searchParams }: Props) {
+  const [{ coachId }, { preseason }] = await Promise.all([params, searchParams]);
   const id = parseInt(coachId, 10);
   if (isNaN(id)) notFound();
+
+  const withPreseason = (preseason ?? "1") !== "0";
 
   // Coach + ELO
   const [coachRow] = await db
     .select({
       id: coaches.id,
       name: coaches.name,
-      rating: eloRatings.rating,
+      rating: withPreseason ? eloRatings.rating : eloRatings.ratingCore,
       wins: eloRatings.wins,
       ties: eloRatings.ties,
       losses: eloRatings.losses,
@@ -81,21 +91,22 @@ export default async function CoachProfilePage({ params }: Props) {
   const rankRow = rankResult.find((r) => r.coachId === id);
   const rank = rankRow ? Number(rankRow.rank) : null;
 
-  // ELO history for sparkline (last 20 matches)
+  // ELO history for full chart
   const historyRows = await db
     .select({
-      eloAfter: eloHistory.eloAfter,
-      eloDelta: eloHistory.eloDelta,
+      eloAfter: withPreseason ? eloHistory.eloAfter : eloHistory.eloAfterCore,
       matchDate: eloHistory.matchDate,
+      seasonId: tournaments.seasonId,
     })
     .from(eloHistory)
-    .where(eq(eloHistory.coachId, id))
+    .innerJoin(matches, eq(eloHistory.matchId, matches.id))
+    .leftJoin(tournaments, eq(matches.tournamentId, tournaments.id))
+    .where(
+      withPreseason
+        ? eq(eloHistory.coachId, id)
+        : and(eq(eloHistory.coachId, id), isNotNull(eloHistory.eloAfterCore))
+    )
     .orderBy(asc(eloHistory.matchDate));
-
-  const sparklineData = historyRows.slice(-20).map((h) => ({
-    elo: Math.round(h.eloAfter),
-    delta: Math.round(h.eloDelta),
-  }));
 
   // Recent matches (last 10) — need team aliases
   const team1 = alias(teams, "team1");
@@ -139,6 +150,38 @@ export default async function CoachProfilePage({ params }: Props) {
     .from(teams)
     .where(eq(teams.coachId, id))
     .orderBy(desc(teams.seasonId));
+
+  // Build chart data from history rows
+  const teamBySeasonId = new Map(
+    teamHistory.map((t) => [t.seasonId, t.rosterName ?? "?"])
+  );
+
+  const seasonIds = [...new Set(
+    historyRows.map((h) => h.seasonId).filter((s): s is string => s !== null)
+  )];
+
+  const segments: CoachSegment[] = seasonIds.map((seasonId, i) => ({
+    dataKey: seasonId,
+    label: `${seasonId} — ${teamBySeasonId.get(seasonId) ?? "?"}`,
+    color: CHART_COLORS.series[i % CHART_COLORS.series.length],
+  }));
+
+  const coachDateMap = new Map<string, Record<string, number>>();
+  for (const row of historyRows) {
+    if (!row.matchDate || !row.seasonId || row.eloAfter === null) continue;
+    const d = new Date(row.matchDate).toLocaleDateString("es-ES", {
+      timeZone: "UTC",
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    });
+    if (!coachDateMap.has(d)) coachDateMap.set(d, {});
+    coachDateMap.get(d)![row.seasonId] = Math.round(row.eloAfter);
+  }
+  const coachChartData = Array.from(coachDateMap.entries()).map(([date, vals]) => ({
+    date,
+    ...vals,
+  }));
 
   const rating = coachRow.rating ? Math.round(coachRow.rating) : null;
 
@@ -188,12 +231,30 @@ export default async function CoachProfilePage({ params }: Props) {
           ))}
         </div>
 
-        {sparklineData.length > 1 && (
-          <div className="mt-4 border-t border-rim pt-4">
-            <p className="font-cinzel text-xs uppercase tracking-widest text-parchment-faint mb-2">
-              Tendencia ELO (últimos {sparklineData.length} partidos)
-            </p>
-            <MiniSparkline data={sparklineData} />
+        {coachChartData.length > 1 && (
+          <div className="mt-6 border-t border-rim pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-cinzel text-xs uppercase tracking-widest text-parchment-faint">
+                Evolución ELO por Temporada
+              </p>
+              <div className="flex gap-2">
+                <Link
+                  href={`/entrenador/${id}`}
+                  className={withPreseason ? activeStyle : inactiveStyle}
+                >
+                  Con pretemporada
+                </Link>
+                <Link
+                  href={`/entrenador/${id}?preseason=0`}
+                  className={!withPreseason ? activeStyle : inactiveStyle}
+                >
+                  Sin pretemporada
+                </Link>
+              </div>
+            </div>
+            <div className="border border-rim bg-surface p-4">
+              <CoachEloChart data={coachChartData} segments={segments} />
+            </div>
           </div>
         )}
       </div>
