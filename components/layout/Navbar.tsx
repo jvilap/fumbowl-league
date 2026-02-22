@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NavCoachSearch from "./NavCoachSearch";
 
 const navLinks = [
   { href: "/", label: "Divisiones" },
@@ -21,18 +22,21 @@ export default function Navbar() {
           <span className="text-parchment-dim font-normal"> League</span>
         </Link>
 
-        <ul className="flex items-center gap-6">
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className="font-barlow text-sm font-semibold tracking-wider uppercase text-parchment-dim hover:text-parchment transition-colors"
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="flex items-center gap-4">
+          <NavCoachSearch />
+          <ul className="flex items-center gap-6">
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="font-barlow text-sm font-semibold tracking-wider uppercase text-parchment-dim hover:text-parchment transition-colors"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </nav>
   );

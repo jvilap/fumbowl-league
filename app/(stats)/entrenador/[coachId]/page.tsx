@@ -7,7 +7,7 @@ import {
   teams,
   tournaments,
 } from "@/lib/db/schema";
-import { eq, desc, asc, sql, isNotNull, and } from "drizzle-orm";
+import { eq, desc, asc, sql, isNotNull, isNull, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -108,9 +108,40 @@ export default async function CoachProfilePage({ params, searchParams }: Props) 
     )
     .orderBy(asc(eloHistory.matchDate));
 
-  // Recent matches (last 10) — need team aliases
+  // Team aliases for recent matches
   const team1 = alias(teams, "team1");
   const team2 = alias(teams, "team2");
+
+  // Next match aliases (separate DB alias strings to avoid conflict)
+  const nextTeam1 = alias(teams, "next_team1");
+  const nextTeam2 = alias(teams, "next_team2");
+
+  // Próximo adversario — partido pendiente en torneo activo
+  const [nextMatch] = await db
+    .select({
+      id: matches.id,
+      round: matches.round,
+      tournamentName: tournaments.name,
+      team1CoachId: matches.team1CoachId,
+      team2CoachId: matches.team2CoachId,
+      team1Name: nextTeam1.name,
+      team1Roster: nextTeam1.rosterName,
+      team2Name: nextTeam2.name,
+      team2Roster: nextTeam2.rosterName,
+    })
+    .from(matches)
+    .innerJoin(tournaments, eq(matches.tournamentId, tournaments.id))
+    .leftJoin(nextTeam1, eq(matches.team1Id, nextTeam1.id))
+    .leftJoin(nextTeam2, eq(matches.team2Id, nextTeam2.id))
+    .where(
+      and(
+        sql`(${matches.team1CoachId} = ${id} OR ${matches.team2CoachId} = ${id})`,
+        eq(tournaments.status, "In Progress"),
+        isNull(matches.team1Score)
+      )
+    )
+    .orderBy(asc(matches.round))
+    .limit(1);
 
   const recentMatches = await db
     .select({
@@ -230,6 +261,35 @@ export default async function CoachProfilePage({ params, searchParams }: Props) 
             </div>
           ))}
         </div>
+
+        {nextMatch && (() => {
+          const isTeam1 = nextMatch.team1CoachId === id;
+          const opponentName = isTeam1 ? nextMatch.team2Name : nextMatch.team1Name;
+          const opponentRoster = isTeam1 ? nextMatch.team2Roster : nextMatch.team1Roster;
+          return (
+            <div className="mt-4 border-t border-rim pt-4">
+              <p className="font-cinzel text-xs uppercase tracking-widest text-parchment-faint mb-2">
+                Próximo Partido
+              </p>
+              <div className="flex items-center justify-between border border-rim bg-elevated px-4 py-3">
+                <div>
+                  <p className="font-barlow font-semibold text-parchment text-base">
+                    {opponentName ?? "—"}
+                  </p>
+                  {opponentRoster && (
+                    <p className="font-mono text-xs text-parchment-faint">{opponentRoster}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="font-mono text-xs text-parchment-faint">{nextMatch.tournamentName}</p>
+                  {nextMatch.round && (
+                    <p className="font-mono text-xs text-gold">Ronda {nextMatch.round}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {coachChartData.length > 1 && (
           <div className="mt-6 border-t border-rim pt-4">

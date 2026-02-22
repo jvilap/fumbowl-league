@@ -209,6 +209,49 @@ export default async function RankingPage({ searchParams }: Props) {
           <p className="mt-8 text-center font-mono text-xs text-parchment-faint">
             {rankings.length} entrenadores · ELO inicial 1000 · K=32
           </p>
+
+          <details className="mt-8 border border-rim bg-surface group open:bg-elevated transition-colors">
+            <summary className="font-cinzel text-xs uppercase tracking-widest text-parchment-faint px-6 py-4 cursor-pointer list-none flex items-center justify-between hover:text-parchment transition-colors">
+              Cómo se calcula el ELO
+              <span className="transition-transform group-open:rotate-180 text-gold text-xs">▼</span>
+            </summary>
+            <div className="border-t border-rim px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs font-mono text-parchment-faint">
+              <div className="space-y-3">
+                <p className="font-cinzel text-gold text-xs uppercase tracking-widest">Parámetros</p>
+                <p>Rating inicial: <span className="text-parchment">1000</span></p>
+                <p>Factor K: <span className="text-parchment">32</span></p>
+                <p>Victoria: <span className="text-win">S = 1.0</span></p>
+                <p>Empate: <span className="text-parchment">S = 0.5</span></p>
+                <p>Derrota: <span className="text-loss">S = 0.0</span></p>
+              </div>
+              <div className="space-y-3">
+                <p className="font-cinzel text-gold text-xs uppercase tracking-widest">Cálculo paso a paso</p>
+                <div className="space-y-1">
+                  <p className="text-parchment-faint">Variables del partido:</p>
+                  <p><span className="text-parchment">Ra</span> = tu ELO antes del partido</p>
+                  <p><span className="text-parchment">Rb</span> = ELO del rival</p>
+                  <p><span className="text-parchment">S</span> = resultado (victoria=1, empate=0.5, derrota=0)</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-parchment-faint">1. Probabilidad esperada de ganar:</p>
+                  <p className="text-parchment">E = 1 / (1 + 10^((Rb − Ra) / 400))</p>
+                  <p>Si Ra = Rb → E = 0.5 (50% para cada uno)</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-parchment-faint">2. ELO actualizado tras el partido:</p>
+                  <p className="text-parchment">Ra&apos; = Ra + K × (S − E)</p>
+                  <p>Si ganas cuando no eras favorito, subes mucho.</p>
+                  <p>Si ganas siendo favorito claro, subes poco.</p>
+                </div>
+              </div>
+              <div className="sm:col-span-2 space-y-2 pt-2 border-t border-rim">
+                <p className="font-cinzel text-gold text-xs uppercase tracking-widest">Reglas</p>
+                <p>El ELO es del <span className="text-parchment">entrenador</span>, no del equipo — acumula entre temporadas.</p>
+                <p><span className="text-parchment">Con pretemporada</span>: incluye torneos Swiss (pretemporada). <span className="text-parchment">Sin pretemporada</span>: solo fase regular y playoffs.</p>
+                <p>Los partidos se procesan en orden cronológico desde la primera temporada.</p>
+              </div>
+            </div>
+          </details>
         </div>
       </main>
 
