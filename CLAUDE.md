@@ -88,7 +88,7 @@ Blood Bowl es un juego de mesa/videojuego de estrategia por turnos ambientado en
 | Deploy | Vercel |
 | Repositorio | GitHub (`jvilap/fumbowl-league`) |
 | Datos externos | FUMBBL API (`https://fumbbl.com/api`) |
-| Sync | Vercel Cron (1 y 15 de cada mes, 4:00 UTC) |
+| Sync | Vercel Cron (cada día, 4:00 UTC) |
 
 ---
 

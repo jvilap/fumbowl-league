@@ -33,7 +33,7 @@ export async function syncTournamentMatches(
 
   // Find which match IDs are already in the DB
   const existingMatches = await db
-    .select({ id: matches.id })
+    .select({ id: matches.id, team1Id: matches.team1Id, team2Id: matches.team2Id })
     .from(matches)
     .where(inArray(matches.id, playedMatchIds));
 
@@ -44,6 +44,20 @@ export async function syncTournamentMatches(
 
   let matchesAdded = 0;
   let teamsAdded = 0;
+  const refreshedTeamIds = new Set<number>();
+
+  // Refresh existing participants in ongoing tournaments, including when there
+  // are no new matches since the previous sync.
+  if (tournament.status === "In Progress") {
+    for (const match of existingMatches) {
+      for (const teamId of [match.team1Id, match.team2Id]) {
+        if (teamId !== null && !refreshedTeamIds.has(teamId)) {
+          await syncTeam(teamId, seasonId, tournament.id);
+          refreshedTeamIds.add(teamId);
+        }
+      }
+    }
+  }
 
   for (const entry of newEntries) {
     const matchData = await fumbbl.getMatch(entry.result!.id);
@@ -57,9 +71,10 @@ export async function syncTournamentMatches(
     const existingTeamIds = new Set(existingTeams.map((t) => t.id));
 
     for (const teamSide of [matchData.team1, matchData.team2]) {
-      if (!existingTeamIds.has(teamSide.id)) {
-        const { isNew } = await syncTeam(teamSide.id, seasonId, tournament.id);
-        if (isNew) teamsAdded++;
+      if (!refreshedTeamIds.has(teamSide.id)) {
+        await syncTeam(teamSide.id, seasonId, tournament.id);
+        refreshedTeamIds.add(teamSide.id);
+        if (!existingTeamIds.has(teamSide.id)) teamsAdded++;
       }
     }
 

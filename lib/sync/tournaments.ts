@@ -49,8 +49,9 @@ function resolveSeasonId(tournament: FumbblTournament): string | null {
   // Seasons run September → June: Sep-Dec = year/year+1, Jan-Jun = (year-1)/year
   if (tournament.start) {
     const date = new Date(tournament.start);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1; // 1-based
+    if (Number.isNaN(date.getTime())) return null;
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1; // 1-based
     if (month >= 9) {
       return `${String(year).slice(2)}/${String(year + 1).slice(2)}`;
     } else {
@@ -87,6 +88,16 @@ export async function syncTournaments(): Promise<{
   let upserted = 0;
   for (const t of tournamentList) {
     const seasonId = resolveSeasonId(t);
+    if (seasonId) {
+      // Create future seasons before inserting their tournaments (foreign key).
+      const startYear = 2000 + Number(seasonId.slice(0, 2));
+      await db.insert(seasons).values({
+        id: seasonId,
+        label: `Temporada ${seasonId}`,
+        startDate: new Date(`${startYear}-09-01T00:00:00Z`),
+        endDate: new Date(`${startYear + 1}-06-30T00:00:00Z`),
+      }).onConflictDoNothing();
+    }
     await db
       .insert(tournaments)
       .values({
@@ -102,8 +113,11 @@ export async function syncTournaments(): Promise<{
       .onConflictDoUpdate({
         target: tournaments.id,
         set: {
+          seasonId,
           name: t.name,
+          type: t.type,
           status: t.status,
+          start: t.start ? new Date(t.start) : null,
           end: t.end ? new Date(t.end) : null,
           winnerTeamId: t.winner?.id ?? null,
         },

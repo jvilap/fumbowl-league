@@ -1,5 +1,17 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Data updates
+
+The sync discovers tournaments in FUMBBL group 13713 and runs daily at 04:00 UTC via the Vercel cron in `vercel.json`. New seasons are created from tournament start dates, new played matches are imported, participating teams in ongoing tournaments are refreshed, and coach Elo is recalculated. A tournament without a start date cannot be assigned to a season until that date is available. Abandoned tournament 65140 is excluded from match imports.
+
+Set `POSTGRES_URL` and `CRON_SECRET` in the deployment environment. Vercel sends the cron secret as a bearer token; the same endpoint can be triggered manually:
+
+```bash
+curl -X POST https://YOUR_DOMAIN/api/sync -H "Authorization: Bearer $CRON_SECRET"
+```
+
+The schedule takes effect after deployment, and sync results and errors are recorded in the `sync_log` table. The route is configured for a 300-second maximum duration, which requires a compatible Vercel plan and function configuration.
+
 ## Getting Started
 
 First, run the development server:
