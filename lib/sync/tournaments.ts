@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { seasons, tournaments } from "../db/schema";
+import { seasons, teams, tournaments } from "../db/schema";
 import { fumbbl } from "../fumbbl/client";
 import type { FumbblTournament } from "../fumbbl/types";
 
@@ -37,6 +37,7 @@ const TOURNAMENT_SEASON_MAP: Record<number, string> = {
   65436: "25/26", // 3a Div. 2025
   65437: "25/26", // 2a Div. 2025
   65438: "25/26", // 1a Div. 2025
+  67279: "26/27", // PreSeason 2K26, started in August
 };
 
 /** Maps tournament → our season id, using known IDs with date fallback */
@@ -46,13 +47,13 @@ function resolveSeasonId(tournament: FumbblTournament): string | null {
   }
 
   // Fallback for future tournaments: derive from start date
-  // Seasons run September → June: Sep-Dec = year/year+1, Jan-Jun = (year-1)/year
+  // Preseason can start in August; Aug-Dec belongs to the coming season.
   if (tournament.start) {
     const date = new Date(tournament.start);
     if (Number.isNaN(date.getTime())) return null;
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth() + 1; // 1-based
-    if (month >= 9) {
+    if (month >= 8) {
       return `${String(year).slice(2)}/${String(year + 1).slice(2)}`;
     } else {
       return `${String(year - 1).slice(2)}/${String(year).slice(2)}`;
@@ -122,6 +123,10 @@ export async function syncTournaments(): Promise<{
           winnerTeamId: t.winner?.id ?? null,
         },
       });
+    // Repair teams assigned to an incorrect season by an earlier sync.
+    if (seasonId) {
+      await db.update(teams).set({ seasonId }).where(eq(teams.tournamentId, t.id));
+    }
     upserted++;
   }
 
